@@ -1,0 +1,4 @@
+name: blockchain_project
+dependencies:
+ - jupyter
+ - pillow
