@@ -1,6 +1,5 @@
 from project import PNGcoin as pg
 from PIL import Image
-import pickle
 
 # Create PNGCoin
 my_coin = pg.PNGCoin([
@@ -11,10 +10,13 @@ my_coin = pg.PNGCoin([
 my_coin.transfers[1].show()
 
 # Test coin validation
-pg.validate(my_coin)
+my_coin.validate()
 
 # Check serialization
 filename = "./bob.pngcoin"
-pg.to_disk(my_coin, filename)
-my_coin_2 = pg.from_disk(filename)
+my_coin.to_disk(filename)
+my_coin_2 = pg.PNGCoin.from_disk(filename)
 my_coin.transfers == my_coin_2.transfers
+
+# Chek visually
+my_coin_2.transfers[1].show()
