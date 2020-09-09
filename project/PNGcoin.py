@@ -29,7 +29,7 @@ def handle_user_input(user_input):
 
     Parameters
     ----------
-    user_input: str
+    user_input : str
         A string of user input
 
     Returns
@@ -56,13 +56,22 @@ class PNGCoin:
 
     Attributes
     ----------
-    transfers: list
-    A list of images of type PIL.PngImagePlugin.PngImageFile generated from
-    Image.open()
+    transfers : list
+        A list of images of type PIL.PngImagePlugin.PngImageFile generated from
+        Image.open()
 
     Methods
     -------
-    None
+    serialize
+        Turns Python object into bytecode
+    deserialize
+        Turns bytecode into a Python object
+    validate
+        Validates the coin by showing PNG images of signatures
+    to_disk
+        Writes a Python object to filename in bytecode
+    from_disk
+        Reads a Python object from filename (in bytecode)
     """
 
     def __init__(self, transfers):
@@ -77,7 +86,7 @@ class PNGCoin:
 
         Returns
         -------
-        A pickle.dumps object
+        Bytecode
         """
         return pickle.dumps(self)
 
@@ -91,22 +100,22 @@ class PNGCoin:
 
         Returns
         -------
-        A pickle.dumps object
+        A python object
         """
         return pickle.loads(serialized)
 
     def validate(self):
-        """Asks the user for input in a yes/no question
+        """Validates the coin by showing PNG images of signatures
 
         Parameters
         ----------
-        coin: PNGCoin
-        A coin of type PNGCoin
+        coin : PNGCoin
+            A coin of type PNGCoin
 
         Returns
         -------
         bool
-        True or False based on the validity of the transfers
+            True or False based on the validity of the transfers
         """
 
         for transfer in self.transfers:
@@ -122,8 +131,8 @@ class PNGCoin:
 
         Parameters
         ----------
-        filename: str
-        A file to write the object data to
+        filename : str
+            A file to write the object data to
 
         Returns
         -------
@@ -139,8 +148,8 @@ class PNGCoin:
 
         Parameters
         ----------
-        filename: str
-        The file to read from
+        filename : str
+            The file to read from
 
         Returns
         ----------

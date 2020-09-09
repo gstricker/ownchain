@@ -2,3 +2,5 @@ name: blockchain_project
 dependencies:
  - jupyter
  - pillow
+ - ecdsa
+ - pickle
