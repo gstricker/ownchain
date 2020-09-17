@@ -1,6 +1,5 @@
-name: blockchain_project
+name: ownchain
 dependencies:
  - jupyter
  - pillow
  - ecdsa
- - pickle

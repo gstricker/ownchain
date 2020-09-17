@@ -18,3 +18,12 @@ public_key.verify(signature, false_message) #throws error
 
 signature == signature_2
 
+# Create user and bank
+alice = User()
+bob = User()
+bank = Bank()
+
+# validate Issuance
+first_coin = bank.issue(alice.public_key)
+message = pickle.dumps(alice.public_key)
+bank.public_key.verify(first_coin.transfers[0].signature, message)
