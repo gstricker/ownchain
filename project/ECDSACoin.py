@@ -7,6 +7,29 @@ Contains the following functions:
 """
 
 import pickle
+from ecdsa import BadSignatureError
+
+def create_transfer_message(previous_signature, public_key):
+    """A function to create a transfer message for the next transfer
+
+    Parameters
+    ----------
+    previous_signature : bytecode
+        The signature of the previous transfer
+    public_key: ecdsa.keys.VerifyingKey
+        the public key of the recipient
+
+    Returns
+    -------
+    bytecode
+        A signed message
+    """
+    message = {
+        "previous_signature": previous_signature,
+        "next_public_key": public_key
+    }
+        
+    return pickle.dumps(message)
 
 class Transfer:
     """A class to handle coin transfer between public keys
@@ -24,7 +47,7 @@ class Transfer:
     """
     def __init__(self, signature, public_key):
         self.signature = signature
-        self.publick_key = public_key
+        self.public_key = public_key
 
 class ECDSACoin:
     """The class of the ECDSACoin
@@ -40,6 +63,44 @@ class ECDSACoin:
     """
     def __init__(self, transfers):
         self.transfers = transfers
+
+    def validate(self, bank):
+        """A function to validate the coin transfers. It is split in
+        verifying that the first transaction came indeed from a bank and the 
+        next transaction are all valid.
+
+        Parameters
+        ----------
+        bank: Bank
+            The bank that has issued the first coin. Needed in order to be
+            able to check the coinage transaction is valid
+
+        Returns
+        -------
+        bool
+        """
+        
+        try:
+            first_transfer = self.transfers[0]
+            message = create_transfer_message(b'',first_transfer.public_key)
+            bank.public_key.verify(first_transfer.signature, message)
+            
+        except BadSignatureError:
+            print("Bad Signature in coinage transaction")
+            return False
+
+        try:
+            for i in range(len(self.transfers))[1:]:
+                message = create_transfer_message(self.transfers[i-1].signature,
+                           self.transfers[i].public_key)
+                self.transfers[i-1].public_key.verify(self.transfers[i].signature,
+                                                      message)
+                
+        except BadSignatureError:
+            print("Bad Signature in transaction number", i+1)
+            return False
+
+        return True
 
 class User:
     """The class of a user in the ECDSA Banking System
@@ -72,6 +133,7 @@ class Bank(User):
     issue
         issues a new ECDSACoin to given public_key
     """
+                                                   
     def issue(self, public_key):
         """Issues a new ECDSACoin to given public_key
         
@@ -84,7 +146,7 @@ class Bank(User):
         -------
         ECDSACoin
         """
-        message = pickle.dumps(public_key)
+        message = create_transfer_message(b'',public_key)
         signature = self.private_key.sign(message)
         
         transfer = Transfer(
