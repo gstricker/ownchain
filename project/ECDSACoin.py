@@ -1,8 +1,20 @@
-""" Descripition to be done
+""" This module defines the slightly advanced version of the PNGCoin
+extended with cryptography instead of PNG images. The code is based on Justin 
+Moons videos from BUIDL camp.
+
+PNG Coin itself is meant as the second in a series of naive Blockchain
+implementations to showcase some basic properties of a Blockchain. 
+
+For teaching purposes only.
 
 Contains the following classes:
-...
+    * Transfer
+    * ECDSACoin
+    * User
+    * Bank (inhereted from User)
+
 Contains the following functions:
+    * create_transfer_message
 ...
 """
 from project import utils
