@@ -5,9 +5,12 @@ Contains the following classes:
 Contains the following functions:
 ...
 """
+from project import utils
+from ecdsa import BadSignatureError, SigningKey, SECP256k1
 
-import pickle
-from ecdsa import BadSignatureError
+#####################
+# Hellper functions #
+#####################
 
 def create_transfer_message(previous_signature, public_key):
     """A function to create a transfer message for the next transfer
@@ -29,7 +32,11 @@ def create_transfer_message(previous_signature, public_key):
         "next_public_key": public_key
     }
         
-    return pickle.dumps(message)
+    return utils.serialize(message)
+
+#############
+# ECDSACoin #
+#############
 
 class Transfer:
     """A class to handle coin transfer between public keys
@@ -63,6 +70,22 @@ class ECDSACoin:
     """
     def __init__(self, transfers):
         self.transfers = transfers
+
+    def is_owner(self, public_key):
+        """Checks the ownership of the coin if given a public key to compare
+
+        Parameters
+        ----------
+        public_key: ecdsa.keys.VerifyingKey
+            the public key of the owner
+        
+        Returns
+        -------
+        bool
+        """
+        if self.transfers[-1].public_key == public_key:
+            return True
+        return False
 
     def validate(self, bank):
         """A function to validate the coin transfers. It is split in
@@ -155,3 +178,4 @@ class Bank(User):
 
         coin = ECDSACoin([transfer])
         return coin
+        

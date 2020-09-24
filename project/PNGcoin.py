@@ -77,33 +77,6 @@ class PNGCoin:
     def __init__(self, transfers):
         self.transfers = transfers
 
-    def serialize(self):
-        """Turns Python object into bytecode
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        Bytecode
-        """
-        return pickle.dumps(self)
-
-    @staticmethod
-    def deserialize(serialized):
-        """Turns bytecode into a Python object
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        A python object
-        """
-        return pickle.loads(serialized)
-
     def validate(self):
         """Validates the coin by showing PNG images of signatures
 
@@ -125,36 +98,3 @@ class PNGCoin:
             if not valid:
                 return False
         return True
-
-    def to_disk(self, filename):
-        """Writes a Python object to filename in bytecode
-
-        Parameters
-        ----------
-        filename : str
-            A file to write the object data to
-
-        Returns
-        -------
-        None
-        """
-        serialized = self.serialize()
-        with open(filename, "wb") as f:
-            f.write(serialized)
-
-    @classmethod
-    def from_disk(cls, filename):
-        """Reads a Python object from filename (in bytecode)
-
-        Parameters
-        ----------
-        filename : str
-            The file to read from
-
-        Returns
-        ----------
-        A Python object that was stored in bytecode
-        """
-        with open(filename, "rb") as f:
-            serialized = f.read()
-            return cls.deserialize(serialized)
