@@ -1,5 +1,5 @@
-from project import ECDSACoin as e
-from project import utils
+from coinchains import ECDSACoin as ec
+from coinchains.utils import from_disk, to_disk
 from ecdsa import SigningKey, SECP256k1
 
 # generate key-pair
@@ -65,8 +65,8 @@ first_coin.validate(bank)
 
 # Check serialization
 filename = "./coin.ecdscoin"
-utils.to_disk(first_coin, filename)
-my_coin_2 = utils.from_disk(filename)
+to_disk(first_coin, filename)
+my_coin_2 = from_disk(filename)
 my_coin_2.validate(bank)
 
 # This comparis does not work as they are not identical (see memory address)

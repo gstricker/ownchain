@@ -3,3 +3,4 @@ dependencies:
  - jupyter
  - pillow
  - ecdsa
+ - pytest

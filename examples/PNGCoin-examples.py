@@ -1,5 +1,5 @@
-from project import PNGcoin as pg
-from project import utils
+from coinchains import PNGcoin as pg
+from coinchains.utils import to_disk, from_disk
 from PIL import Image
 
 # Create PNGCoin
@@ -15,8 +15,8 @@ my_coin.validate()
 
 # Check serialization
 filename = "./bob.pngcoin"
-utils.to_disk(my_coin, filename)
-my_coin_2 = utils.from_disk(filename)
+to_disk(my_coin, filename)
+my_coin_2 = from_disk(filename)
 my_coin.transfers == my_coin_2.transfers
 
 # Chek visually

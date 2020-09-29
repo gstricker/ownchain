@@ -17,7 +17,7 @@ Contains the following functions:
     * create_transfer_message
 ...
 """
-from project import utils
+from coinchains.utils import serialize
 from ecdsa import BadSignatureError, SigningKey, SECP256k1
 
 #####################
@@ -44,7 +44,7 @@ def create_transfer_message(previous_signature, public_key):
         "next_public_key": public_key
     }
         
-    return utils.serialize(message)
+    return serialize(message)
 
 #############
 # ECDSACoin #
