@@ -1,5 +1,5 @@
-from coinchains import PNGcoin as pg
-from coinchains.utils import to_disk, from_disk
+from ownchain import PNGcoin as pg
+from ownchain.utils import to_disk, from_disk
 from PIL import Image
 
 # Create PNGCoin

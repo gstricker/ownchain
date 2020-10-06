@@ -1,5 +1,5 @@
-from coinchains import ECDSACoin as ec
-from coinchains.utils import from_disk, to_disk
+from ownchain import ECDSACoin as ec
+from ownchain.utils import from_disk, to_disk
 from ecdsa import SigningKey, SECP256k1
 
 # generate key-pair

@@ -17,7 +17,7 @@ Contains the following functions:
     * create_transfer_message
 ...
 """
-from coinchains.utils import serialize
+from ownchain.utils import serialize
 from ecdsa import BadSignatureError, SigningKey, SECP256k1
 
 #####################
