@@ -1,8 +1,8 @@
-""" This module defines the slightly advanced version of the PNGCoin
-extended with cryptography instead of PNG images. The code is based on Justin 
-Moons videos from BUIDL camp.
+""" This module defines the slightly advanced version of the ECDSACoin
+extended with a centralized authority that controls coin flow. The code is 
+based on Justin Moons videos from BUIDL camp.
 
-PNG Coin itself is meant as the second in a series of naive Blockchain
+BankCoin itself is meant as the second in a series of naive Blockchain
 implementations to showcase some basic properties of a Blockchain. 
 
 For teaching purposes only.
@@ -10,8 +10,7 @@ For teaching purposes only.
 Contains the following classes:
     * Transfer
     * BankCoin
-    * User
-    * Bank (inhereted from User)
+    * Bank
 
 Contains the following functions:
     * create_transfer_message
@@ -81,10 +80,16 @@ class BankCoin:
     ----------
     transfers: list
         A list of coin transfers where each element is of type Transfer
+    id: uuid.UUID
+        The ID of the coin
 
     Methods
     -------
-    None
+    transfer
+        creates a signed transfer to a recipient
+    validate
+        validates all transfers of the coin and throws a BadSignatureError in
+        case it's invalid
     """
     def __init__(self, transfers):
         self.id = uuid4()
@@ -94,6 +99,18 @@ class BankCoin:
         return self.id == other.id and self.transfers == other.transfers
 
     def transfer(self, owner_private_key, recipient_public_key):
+        """Creates a signed transfer to a recepient
+        
+        Parameters
+        ----------
+        owner_private_key: ecdsa.keys.SigningKey
+            The private key of the current owner
+        recipient_public_key: ecdsa.keys.VerifyingKey
+            The public key of the recepient
+
+        Returns
+        -------
+        """
         previous_signature = self.transfers[-1].signature
         message = create_transfer_message(previous_signature, recipient_public_key)
 
@@ -103,52 +120,45 @@ class BankCoin:
 
         self.transfers.append(transfer)
 
-    def validate(self, bank):
+    def validate(self):
         """A function to validate the coin transfers. It is split in
         verifying that the first transaction came indeed from a bank and the 
         next transaction are all valid.
 
         Parameters
         ----------
-        bank: Bank
-            The bank that has issued the first coin. Needed in order to be
-            able to check the coinage transaction is valid
 
         Returns
         -------
-        bool
-        """
-        
-        try:
-            first_transfer = self.transfers[0]
-            message = create_transfer_message(b'',first_transfer.public_key)
-            bank.public_key.verify(first_transfer.signature, message)
-            
-        except BadSignatureError:
-            print("Bad Signature in coinage transaction")
-            return False
-
-        try:
-            for i in range(len(self.transfers))[1:]:
-                message = create_transfer_message(self.transfers[i-1].signature,
-                           self.transfers[i].public_key)
-                self.transfers[i-1].public_key.verify(self.transfers[i].signature,
-                                                      message)
+        Throws BadSignatureError on error
+        """        
+        previous_transfer = self.transfers[0]
+        for t in self.transfers[1:]:
+            message = create_transfer_message(
+                previous_signature=previous_transfer.signature,
+                public_key=t.public_key)
+            assert previous_transfer.public_key.verify(t.signature, message)
+            previous_transfer = t
                 
-        except BadSignatureError:
-            print("Bad Signature in transaction number", i+1)
-            return False
 
-        return True
 
 class Bank:
-    """TBD
+    """The entity that controls the issuance of coins and maintains
+    a coin database
     
     Attributes
     ----------
-    
+    coins: dict
+        The database of coins as a key-value storage (ID to coin)
+
     Methods
     -------
+    issue
+        issues a new BankCoin to given public_key and record in database
+    observe_coin
+        write coin transfers to database if a valid transfer
+    fetch_coins
+        read which coins belong to certain owner
     """
                                                    
     def __init__(self):
@@ -156,7 +166,7 @@ class Bank:
         self.coins = {}        
 
     def issue(self, public_key):
-        """Issues a new ECDSACoin to given public_key
+        """Issues a new BankCoin to given public_key and record in database
         
         Parameters
         ----------
@@ -179,7 +189,43 @@ class Bank:
         
         return coin
 
+    def observe_coin(self, coin):
+        """Write coin transfers to database if a valid transfer
+        
+        Parameters
+        ----------
+        coin: BankCoin
+            A BankCoin to be transfered
+        
+        Returns
+        -------
+        """
+        current_coin_status = self.coins[coin.id]
+        
+        # In coin.transfers[] use all bank recorded transfers (num_transfers)
+        # instead of the length of all transfers of the coin - 1 because there
+        # might have been more transfers added but not recorded that would need
+        # to be validated first
+        num_transfers = len(current_coin_status.transfers)
+        assert current_coin_status.transfers == coin.transfers[:num_transfers]
+
+        coin.validate()
+
+        self.coins[coin.id] = deepcopy(coin)
+
     def fetch_coins(self, public_key):
+        """Read which coins belong to certain owner
+
+        Parameters
+        ----------
+        public_key: ecdsa.keys.VerifyingKey
+            The given public key to be checked for balance
+        
+        Returns
+        -------
+        list
+            A list of BankCoins of which the public_key holder is the owner
+        """
         coins = []
         for coin in self.coins.values():
             if coin.transfers[-1].public_key.to_string() == \
