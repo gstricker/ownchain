@@ -2,7 +2,7 @@
 extended with a centralized authority that controls coin flow. The code is 
 based on Justin Moons videos from BUIDL camp.
 
-BankCoin itself is meant as the second in a series of naive Blockchain
+BankCoin itself is meant as the third in a series of naive Blockchain
 implementations to showcase some basic properties of a Blockchain. 
 
 For teaching purposes only.
