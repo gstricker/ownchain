@@ -27,8 +27,8 @@ def test_bank_balances():
     ]
 
     alice_to_bob = Tx(id=tx_id, tx_ins=tx_ins, tx_outs=tx_outs)
-    alice_to_bob.sign.input(0, alice_private_key)
+    alice_to_bob.sign_input(0, alice_private_key)
     bank.handle_tx(alice_to_bob)
 
     assert 990 == bank.fetch_balance(alice_public_key)
-    assert 10 == bank.fetch.balance(bob_public_key)
+    assert 10 == bank.fetch_balance(bob_public_key)
