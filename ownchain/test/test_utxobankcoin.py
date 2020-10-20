@@ -1,6 +1,6 @@
 import uuid
 from ecdsa import SigningKey, SECP256k1
-from ownchain.txbankcoin import TxIn, TxOut, Tx, Bank
+from ownchain.utxobankcoin import TxIn, TxOut, Tx, Bank
 
 # Create accounts
 alice_private_key = SigningKey.generate(curve=SECP256k1)

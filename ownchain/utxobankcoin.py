@@ -1,12 +1,13 @@
-""" This module defines the slightly advanced version of the BankCoin
-extended with a transaction system that lets the coins be transacted instead of
-just transfered. Transactions require amounts and thus enable divisibility 
-instead of giving an entire coin form A to B. The code is based on Justin Moons
-videos from BUIDL camp.
+""" This module defines the slightly advanced version of the BankCoin and 
+TxBankCoin extended with a transaction system that lets the coins be transacted
+instead of just transfered as well as a cache of unspent transactions (UTXOs).
+Transactions require amounts and thus enable divisibility instead of giving an 
+entire coin form A to B. The code is based on Justin Moons  videos from BUIDL
+camp.
 
-txBankCoin itself is meant as the fourth in a series of naive Blockchain
+utxoBankCoin itself is meant as the fifth in a series of naive Blockchain
 implementations to showcase some basic properties of a Blockchain. In the 
-original series the txBankCoin is part of BankCoin.
+original series the utxoBankCoin is part of BankCoin.
 
 For teaching purposes only.
 
@@ -60,7 +61,7 @@ class Tx:
         -------
         none
         """
-        spend_message = self.tx_ins[index].spend_message()
+        spend_message = self.tx_ins[index].spend_message
         signature = private_key.sign(spend_message)
         self.tx_ins[index].signature = signature
 
@@ -82,12 +83,15 @@ class TxIn:
         A constructor of the message that will be signed. The structure of
         message is not that important as long as it is easy to replicate and
         encoded in bytecode
+    outpoint
+        A unique identifier to a transaction input
     """
     def __init__(self, tx_id, index, signature):
         self.tx_id = tx_id
         self.index = index
         self.signature = signature
 
+    @property
     def spend_message(self):
         """A constructor of the message that will be signed. The structure of
             message is not that important as long as it is easy to replicate and
@@ -103,6 +107,22 @@ class TxIn:
             The bytecode format is needed as an input for the signing function
         """
         return f"{self.tx_id}:{self.index}".encode()
+
+    @property
+    def outpoint(self):
+        """ A unique identifier to a transaction input in the form of a tuple
+        of ID and index
+        
+        Parameters
+        ----------
+        none
+        
+        Returns
+        -------
+        tuple
+            A tuple of transaction ID and transaction index
+        """
+        return (self.tx_id, self.index)
 
 class TxOut:
     """ A class for the transaction output
@@ -120,7 +140,8 @@ class TxOut:
 
     Methods
     -------
-    none
+    outpoint
+        A unique identifier to a transaction input
     """
     def __init__(self, tx_id, index, amount, public_key):
         self.tx_id = tx_id
@@ -128,22 +149,37 @@ class TxOut:
         self.amount = amount
         self.public_key = public_key
 
+    @property
+    def outpoint(self):
+        """ A unique identifier to a transaction output in the form of a tuple
+        of ID and index
+        
+        Parameters
+        ----------
+        none
+        
+        Returns
+        -------
+        tuple
+            A tuple of transaction ID and transaction index
+        """
+        return (self.tx_id, self.index)
+
 class Bank:
     """ The class of the bank, the central entity that keeps track of
     all transactions
 
     Attributes
     ----------
-    txs: dict
-        A database of transactions associated with an ID
+    utxo: dict
+        A database of unspent transactions associated with an ID and index
 
     Methods
     -------
+    update_utxo
+        Updates the UTXO database
     issue
         A method to issue new coins
-    is_unspent
-        A methond to check if an input is unspent (and thus can be used as an
-        input)
     validate
         Method to validate a transactions
     handle_tx
@@ -155,7 +191,27 @@ class Bank:
         Get the balance for a specific public_key
     """
     def __init__(self):
-        self.txs = {}
+        # mapping (tx_id, index) --> tx_out 
+        self.utxo = {}
+
+    def update_utxo(self, tx):
+        """ Updates the UTXO database with new transaction outputs while
+        deleting spent inputs
+        
+        Parameters
+        ----------
+        tx: Tx
+            A transaction
+        
+        Returns
+        -------
+        none
+        """
+        for tx_in in tx.tx_ins:
+            del self.utxo[tx_in.outpoint]
+
+        for tx_out in tx.tx_outs:
+            self.utxo[tx_out.outpoint] = tx_out
 
     def issue(self, amount, public_key):
         """A method to issue new coins
@@ -178,33 +234,8 @@ class Bank:
             TxOut(tx_id=id, index=0, amount=amount, public_key=public_key)
         ]
         tx = Tx(id=id, tx_ins=tx_ins, tx_outs=tx_outs)
-        self.txs[tx.id] = tx
+        self.update_utxo(tx)
         return tx
-
-    def is_unspent(self, tx_in):
-        """A methond to check if an input is unspent (and thus can be used as an
-        input)
-
-        Parameters
-        ----------
-        tx_in: TxIn
-            An input transaction
-
-        Returns
-        -------
-        bool
-            True if transaction input has already been spent. False otherwise.
-        """
-
-        # Check if the combination of index and id is already present in the
-        # transaction database
-        for tx in self.txs.values():
-            for input_tx in tx.tx_ins:
-                if input_tx.tx_id == tx_in.tx_id and \
-                   input_tx.index == tx_in.index:
-                    return False
-
-        return True
 
     def validate(self, tx):
         """Method to validate a transactions. That is, validate that the
@@ -226,13 +257,13 @@ class Bank:
 
         for tx_in in tx.tx_ins:
             # check if unspent
-            assert self.is_unspent(tx_in)
+            assert tx_in.outpoint in self.utxo
 
             # since inputs don't have amounts, we have to get the amount
             # from the associated outputs of a previous transaction
-            tx_out = self.txs[tx_in.tx_id].tx_outs[tx_in.index]
+            tx_out = self.utxo[tx_in.outpoint]
             pub_key = tx_out.public_key
-            pub_key.verify(tx_in.signature, tx_in.spend_message())
+            pub_key.verify(tx_in.signature, tx_in.spend_message)
 
             # sum up inputs
             in_sum += tx_out.amount
@@ -257,7 +288,7 @@ class Bank:
         none
         """
         self.validate(tx)
-        self.txs[tx.id] = tx
+        self.update_utxo(tx)
 
     def fetch_utxo(self, public_key):
         """Get all unspent transactions (UTXOs) that are associated with a 
@@ -274,15 +305,8 @@ class Bank:
             All output transactions associated with the public_key, 
             but not in the spent list
         """
-        # Find which (tx_id, index) pairs have been spent
-        spent_pairs = [(tx_in.tx_id, tx_in.index)
-                       for tx in self.txs.values()
-                       for tx_in in tx.tx_ins]
-        # Return tx_outs associated with the public_key and not in the spent list
-        return [tx_out for tx in self.txs.values()
-                for i, tx_out in enumerate(tx.tx_outs)
-                    if public_key == tx_out.public_key
-                    and (tx.id, i) not in spent_pairs]
+        return [utxo for utxo in self.utxo.values()
+                if utxo.public_key.to_string() == public_key.to_string()]
 
     def fetch_balance(self, public_key):
         """Get the balance for a specific public_key
