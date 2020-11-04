@@ -1,11 +1,11 @@
-""" This module defines the slightly advanced version of the BankCoin Family. 
+""" This module defines the slightly advanced version of the BankCoin Family.
 It includes some bug fixes from BankCoin as well as ...
 
 The code is based on Justin Moons  videos from BUIDL
 camp.
 
 BankNetCoin itself is meant as the sixth in a series of naive Blockchain
-implementations to showcase some basic properties of a Blockchain. In the 
+implementations to showcase some basic properties of a Blockchain. In the
 original series the BankNetCoin is part of BlockCoin
 
 For teaching purposes only.
@@ -17,23 +17,30 @@ Contains the following classes:
     * TxOut
 
 Contains the following functions:
-    * 
+    *
 ...
 """
+import socketserver
+import socket
+import sys
 from uuid import uuid4
 from copy import deepcopy
 from ecdsa import SigningKey, SECP256k1
-from ownchain.utils import serialize
+from ownchain.utils import serialize, deserialize
 
+
+# Functions
 def spend_message(tx, index):
     # potentially move to Tx as a class method
     tx_in = tx.tx_ins[index]
     outpoint = tx_in.outpoint
     return serialize(outpoint) + serialize(tx.tx_outs)
 
+
+# Classes
 class Tx:
     """ A class that defines a transaction with inputs and outputs
-    
+
     Attributes
     ----------
     id: uuid.UUID
@@ -42,7 +49,7 @@ class Tx:
         A list of all transaction inputs
     tx_outs: list
         A list of all transaction outputs
-    
+
     Methods
     -------
     sign_input
@@ -64,7 +71,7 @@ class Tx:
             separately
         private_key: ecdsa.keys.SigningKey
             The private key of the owner of the input
-        
+
         Returns
         -------
         none
@@ -78,9 +85,10 @@ class Tx:
         message = spend_message(self, index)
         return public_key.verify(tx_in.signature, message)
 
+
 class TxIn:
     """ The class of a transaction input
-    
+
     Attributes
     ----------
     tx_id: uuid.UUID
@@ -104,17 +112,18 @@ class TxIn:
     def outpoint(self):
         """ A unique identifier to a transaction input in the form of a tuple
         of ID and index
-        
+
         Parameters
         ----------
         none
-        
+
         Returns
         -------
         tuple
             A tuple of transaction ID and transaction index
         """
         return (self.tx_id, self.index)
+
 
 class TxOut:
     """ A class for the transaction output
@@ -145,17 +154,18 @@ class TxOut:
     def outpoint(self):
         """ A unique identifier to a transaction output in the form of a tuple
         of ID and index
-        
+
         Parameters
         ----------
         none
-        
+
         Returns
         -------
         tuple
             A tuple of transaction ID and transaction index
         """
         return (self.tx_id, self.index)
+
 
 class Bank:
     """ The class of the bank, the central entity that keeps track of
@@ -183,18 +193,18 @@ class Bank:
         Get the balance for a specific public_key
     """
     def __init__(self):
-        # mapping (tx_id, index) --> tx_out 
+        # mapping (tx_id, index) --> tx_out
         self.utxo = {}
 
     def update_utxo(self, tx):
         """ Updates the UTXO database with new transaction outputs while
         deleting spent inputs
-        
+
         Parameters
         ----------
         tx: Tx
             A transaction
-        
+
         Returns
         -------
         none
@@ -269,7 +279,7 @@ class Bank:
     def handle_tx(self, tx):
         """Method to deal with incoming transactions. That is validate and if
         valid store in database
-        
+
         Parameters
         ----------
         tx: Tx
@@ -283,9 +293,9 @@ class Bank:
         self.update_utxo(tx)
 
     def fetch_utxo(self, public_key):
-        """Get all unspent transactions (UTXOs) that are associated with a 
-        specific public_key
-        
+        """Get all unspent transactions (UTXOs) that are associated
+        with a specific public_key
+
         Parameters
         ----------
         public_key: ecdsa.keys.VerifyingKey
@@ -294,7 +304,7 @@ class Bank:
         Returns
         -------
         list
-            All output transactions associated with the public_key, 
+            All output transactions associated with the public_key,
             but not in the spent list
         """
         return [utxo for utxo in self.utxo.values()
@@ -315,3 +325,74 @@ class Bank:
         """
         utxo = self.fetch_utxo(public_key)
         return sum([tx_out.amount for tx_out in utxo])
+
+
+############################## Sockets #########################################
+
+# Constants
+HOST = "0.0.0.0"
+PORT = 10000
+ADDRESS = (HOST, PORT)
+BANK = Bank() # hack due to WiP
+
+#Functions
+def prepare_message(command, data):
+    return {
+        "command": command,
+        "data": data
+        }
+
+def serve():
+    server = MyTCPServer(ADDRESS, TCPHandler)
+    server.serve_forever()
+
+
+def send_message(command, data):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(ADDRESS)
+    
+    message = prepare_message(command, data)
+    serialized_message = serialize(message)
+    sock.sendall(serialized_message)
+
+    response_data = sock.recv(5000)
+    response = deserialize(resp_data)
+
+    print(f'Received: {response}')
+
+
+# Classes
+class MyTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
+
+class TCPHandler(socketserver.BaseRequestHandler):
+
+    def respond(self, command, data):
+        message = prepare_message(command, data)
+        serialized_message = serialize(message)
+        self.request.sendall(serialized_message)
+
+    def handle(self):
+        message_data = self.request.recv(5000).strip()
+        message = deserialize(message_data)
+        command = message['command']
+        print(f"got a message {message}")
+
+        if command == 'ping':
+            self.respond("pong", "")
+
+        if command == 'balance':
+            public_key = message['data']
+            balance = BANK.fetch_balance(public_key)
+            self.respond("balance-response", balance)
+
+
+# Main
+if __name__ == "__main__":
+    if sys.argv[1] == "serve":
+        serve()
+    elif sys.argv[1] == "ping":
+        ping()
+    else:
+        pass
