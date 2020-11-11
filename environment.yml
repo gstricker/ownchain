@@ -4,3 +4,4 @@ dependencies:
  - pillow
  - ecdsa
  - pytest
+ - click

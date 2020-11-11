@@ -23,11 +23,12 @@ Contains the following functions:
 import socketserver
 import socket
 import sys
+import click
 from uuid import uuid4
 from copy import deepcopy
 from ecdsa import SigningKey, SECP256k1
 from ownchain.utils import serialize, deserialize
-
+from ownchain.example_users import user_private_key, user_public_key
 
 # Functions
 def spend_message(tx, index):
@@ -327,6 +328,24 @@ class Bank:
         return sum([tx_out.amount for tx_out in utxo])
 
 
+############################# Arg Parsing ######################################
+
+# CONTEXT_SETTINGS = dict(help_option_name=['-h', '--help'])
+
+# def execute_command(command, data):
+#     response = send_message(command, data)
+#     print(f'Received: {response}')
+
+# @click.group(context_settings=CONTEXT_SETTINGS)
+# @click.version_option(version='1.0.0')
+@click.group()
+def banknetcoin():
+    pass
+
+@banknetcoin.command()
+def ping():
+    send_message(command='ping', data='')
+
 ############################## Sockets #########################################
 
 # Constants
@@ -342,6 +361,7 @@ def prepare_message(command, data):
         "data": data
         }
 
+@banknetcoin.command() # connects to args parsing
 def serve():
     server = MyTCPServer(ADDRESS, TCPHandler)
     server.serve_forever()
@@ -356,9 +376,10 @@ def send_message(command, data):
     sock.sendall(serialized_message)
 
     response_data = sock.recv(5000)
-    response = deserialize(resp_data)
-
+    response = deserialize(response_data)
+    
     print(f'Received: {response}')
+    
 
 
 # Classes
@@ -387,12 +408,9 @@ class TCPHandler(socketserver.BaseRequestHandler):
             balance = BANK.fetch_balance(public_key)
             self.respond("balance-response", balance)
 
-
 # Main
+def simulate_use():
+    pass
+
 if __name__ == "__main__":
-    if sys.argv[1] == "serve":
-        serve()
-    elif sys.argv[1] == "ping":
-        ping()
-    else:
-        pass
+    banknetcoin()
