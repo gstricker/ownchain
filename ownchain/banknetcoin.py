@@ -308,8 +308,9 @@ class Bank:
             All output transactions associated with the public_key,
             but not in the spent list
         """
+        # left to_string, since ecdsa implemented an __eq__ literal
         return [utxo for utxo in self.utxo.values()
-                if utxo.public_key == public_key]
+                if utxo.public_key.to_string() == public_key.to_string()]
 
     def fetch_balance(self, public_key):
         """Get the balance for a specific public_key
@@ -340,11 +341,24 @@ class Bank:
 # @click.version_option(version='1.0.0')
 @click.group()
 def banknetcoin():
-    pass
+
+    # simulate bank issuance
+    alice_public_key = user_public_key('alice')
+    BANK.issue(1000, alice_public_key)
 
 @banknetcoin.command()
 def ping():
     send_message(command='ping', data='')
+
+@banknetcoin.command()
+def serve():
+    serve()
+
+@banknetcoin.command()
+@click.argument('name')
+def balance(**kwargs):
+    public_key = user_public_key(kwargs['name'])
+    send_message("balance", public_key)
 
 ############################## Sockets #########################################
 
@@ -352,7 +366,7 @@ def ping():
 HOST = "0.0.0.0"
 PORT = 10000
 ADDRESS = (HOST, PORT)
-BANK = Bank() # hack due to WiP
+BANK = Bank() # Hack to make user simulation possible
 
 #Functions
 def prepare_message(command, data):
@@ -361,7 +375,6 @@ def prepare_message(command, data):
         "data": data
         }
 
-@banknetcoin.command() # connects to args parsing
 def serve():
     server = MyTCPServer(ADDRESS, TCPHandler)
     server.serve_forever()
@@ -395,7 +408,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         self.request.sendall(serialized_message)
 
     def handle(self):
-        message_data = self.request.recv(5000).strip()
+        message_data = self.request.recv(20000)
         message = deserialize(message_data)
         command = message['command']
         print(f"got a message {message}")
@@ -405,12 +418,9 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
         if command == 'balance':
             public_key = message['data']
-            balance = BANK.fetch_balance(public_key)
+            balance = BANK.fetch_balance(public_key)    
             self.respond("balance-response", balance)
 
 # Main
-def simulate_use():
-    pass
-
 if __name__ == "__main__":
     banknetcoin()
