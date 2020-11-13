@@ -1,10 +1,14 @@
 """ Utility functions for use across projects
 
 Contains the following functions:
-...
+    * serialize
+    * deserialize
+    * to_disk
+    * from_disk
 """
 
 import pickle
+import uuid
 
 def serialize(coin):
     """Turns Python object into bytecode
@@ -66,3 +70,39 @@ def from_disk(filename):
     with open(filename, "rb") as f:
         serialized = f.read()
     return deserialize(serialized)
+
+def prepare_tx(utxos, sender_private_key, receiver_public_key, amount):
+    # some import to be corrected later
+    from ownchain.banknetcoin import Tx, TxIn, TxOut
+    
+    sender_public_key = sender_private_key.get_verifying_key()
+    amount = int(amount)
+
+    # Construct TxIns
+    tx_ins = []
+    tx_in_sum = 0
+    for tx_outs in utxos:
+        tx_ins.append(TxIn(tx_id=tx_outs.tx_id, index=tx_outs.index,
+                           signature=None))
+        tx_in_sum += tx_outs.amount
+        if tx_in_sum > amount:
+            break
+
+    # Make sure sender can afford it
+    assert tx_in_sum >= amount
+
+    # Construct TxOuts
+    tx_id = uuid.uuid4()
+    change = tx_in_sum - amount
+    tx_outs = [
+        TxOut(tx_id=tx_id, index=0, amount=amount, public_key=receiver_public_key),
+        TxOut(tx_id=tx_id, index=1, amount=change, public_key=sender_public_key)
+    ]
+
+    # Construct Tx and sign input
+    tx = Tx(id=tx_id, tx_ins=tx_ins, tx_outs=tx_outs)
+    for i in range(len(tx.tx_ins)):
+        tx.sign_input(i, sender_private_key)
+
+    return tx
+

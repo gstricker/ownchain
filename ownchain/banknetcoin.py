@@ -27,7 +27,7 @@ import click
 from uuid import uuid4
 from copy import deepcopy
 from ecdsa import SigningKey, SECP256k1
-from ownchain.utils import serialize, deserialize
+from ownchain.utils import serialize, deserialize, prepare_tx
 from ownchain.example_users import user_private_key, user_public_key
 
 # Functions
@@ -348,18 +348,47 @@ def banknetcoin():
 
 @banknetcoin.command()
 def ping():
+    """Test connection
+    """
     send_message(command='ping', data='')
 
 @banknetcoin.command()
 def serve():
+    """Starts server
+    """
     serve()
 
 @banknetcoin.command()
 @click.argument('name')
 def balance(**kwargs):
+    """Returns the balance of NAME
+    """
     public_key = user_public_key(kwargs['name'])
     send_message("balance", public_key)
 
+@banknetcoin.command()
+@click.argument('from')
+@click.argument('to')
+@click.argument('amount')
+def tx(**kwargs):
+    """Constructs transactions from FORM to TO with the amount AMOUNT
+
+    FROM and TO must be names, while AMOUNT is a numeric
+    """
+    sender_private_key = user_private_key(kwargs['from'])
+    sender_public_key = sender_private_key.get_verifying_key()
+    receiver_public_key = user_public_key(kwargs['to'])
+
+    # fetch UTXOs
+    utxos = send_message("utxo", sender_public_key)
+
+    # construct Tx
+    tx = prepare_tx(utxos['data'], sender_private_key, receiver_public_key,
+                    kwargs['amount'])
+
+    # send to bank
+    response = send_message('tx', tx)
+    
 ############################## Sockets #########################################
 
 # Constants
@@ -388,12 +417,12 @@ def send_message(command, data):
     serialized_message = serialize(message)
     sock.sendall(serialized_message)
 
-    response_data = sock.recv(5000)
+    response_data = sock.recv(20000)
     response = deserialize(response_data)
     
     print(f'Received: {response}')
     
-
+    return response
 
 # Classes
 class MyTCPServer(socketserver.TCPServer):
@@ -420,6 +449,18 @@ class TCPHandler(socketserver.BaseRequestHandler):
             public_key = message['data']
             balance = BANK.fetch_balance(public_key)    
             self.respond("balance-response", balance)
+
+        if command == 'utxo':
+            public_key = message['data']
+            utxos = BANK.fetch_utxo(public_key)    
+            self.respond("utxos", utxos)
+
+        if command == 'tx':
+            try:
+                BANK.handle_tx(message['data'])
+                self.respond('Transaction', 'accepted')
+            except:
+                self.respond('Transaction', 'rejected')
 
 # Main
 if __name__ == "__main__":
