@@ -45,7 +45,7 @@ def banknetcoin():
 def ping():
     """Test connection
     """
-    send_message(command='ping', data='')
+    ping()
 
 
 @banknetcoin.command()
@@ -72,7 +72,7 @@ ADDRESS = (HOST, PORT)
 def ping():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(ADDRESS)
-    sock.request.sendall(b'ping')
+    sock.sendall(b'ping')
     response = sock.recv(10)
     logger.info(f'Received {str(response)}')
 
@@ -85,10 +85,10 @@ def serve():
 class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
-        message = self.request.recv(10).strip()
-        logger.info(f'Received {str(message)}')
-        if message == 'ping':
-            self.request.sendall(b'pong')
+        message_bytes = self.request.recv(10).strip()
+        logger.info(f'Received {str(message_bytes)}')
+        if message_bytes == b'ping':
+            self.request.sendall(b'pong\n')
             logger.info('Send pong')
 
 

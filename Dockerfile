@@ -1,14 +1,17 @@
 FROM continuumio/miniconda3
 
-# create environment
+# make docker use bash instead of sh
+SHELL ["/bin/bash", "--login", "-c"]
+
+# copy all necessary files
 COPY environment.yml .
+COPY ownchain/blockcoin.py .
+COPY entrypoint.sh /usr/local/bin/
+
+# make entrypoint script executable
+RUN chmod u+x /usr/local/bin/entrypoint.sh
+# create environment
 RUN conda env create -f environment.yml
 
-make run command use the ownchain environment
-SHELL ["conda", "run", "-n", "ownchain", "/bin/bash", "-c"]
-
-# run server instance
-COPY ownchain/blockcoin.py .
-ENTRYPOINT ["conda", "run", "-n", "ownchain", "python", "blockcoin.py", "serve"
-
-
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["python", "blockcoin.py", "serve"]
