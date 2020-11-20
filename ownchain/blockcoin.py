@@ -68,17 +68,19 @@ HOST = "0.0.0.0"
 PORT = 10000
 ADDRESS = (HOST, PORT)
 
+class MyTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
 
 def ping():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(ADDRESS)
     sock.sendall(b'ping')
     response = sock.recv(10)
-    logger.info(f'Received {str(response)}')
+    logger.info(f'Received {response.decode()}')
 
 
 def serve():
-    server = socketserver.TCPServer(ADDRESS, TCPHandler)
+    server = MyTCPServer(ADDRESS, TCPHandler)
     server.serve_forever()
 
 
@@ -86,7 +88,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         message_bytes = self.request.recv(10).strip()
-        logger.info(f'Received {str(message_bytes)}')
+        logger.info(f'Received {message_bytes.decode()}')
         if message_bytes == b'ping':
             self.request.sendall(b'pong\n')
             logger.info('Send pong')

@@ -10,15 +10,26 @@ original series the BankNetCoin is part of BlockCoin
 
 For teaching purposes only.
 
+Contains the following constants:
+    * HOST
+    * PORT
+    * ADDRESS
+    * BANK
+
 Contains the following classes:
     * Bank
     * Tx
     * TxIn
     * TxOut
+    * MyTCPServer
+    * TCPHandler
 
 Contains the following functions:
-    *
-...
+    * spend_message
+    * Arg parsing functions 
+    * prepare_message
+    * send_message
+    * serve
 """
 import socketserver
 import socket
@@ -32,7 +43,19 @@ from ownchain.example_users import user_private_key, user_public_key
 
 # Functions
 def spend_message(tx, index):
-    # potentially move to Tx as a class method
+    """ Creates a message to be signed in order to spend the outputs
+    
+    Parameters
+    ----------
+    tx: Tx
+        The newly constructed transaction
+    index: int
+        The index of the transaction input to be signed
+
+    Returns
+    -------
+    A serialized message
+    """
     tx_in = tx.tx_ins[index]
     outpoint = tx_in.outpoint
     return serialize(outpoint) + serialize(tx.tx_outs)
@@ -55,6 +78,8 @@ class Tx:
     -------
     sign_input
         method to sign the input in a transaction (usually by the sender)
+    verify_input
+        Verifying the validity of the signed input tx
     """
 
     def __init__(self, id, tx_ins, tx_outs):
@@ -82,6 +107,20 @@ class Tx:
         self.tx_ins[index].signature = signature
 
     def verify_input(self, index, public_key):
+        """ Verifying the validity of the signed input tx. Needed to verify
+        that the sender is really allowed to spend this transaction
+
+        Parameters
+        ----------
+        index: int
+            The index of the TxIn
+        public_key: ecdsa.keys.VerifyingKey
+            The public_key of the sender
+
+        Returns
+        -------
+        None if valid, throws BadSignatureError otherwise
+        """
         tx_in = self.tx_ins[index]
         message = spend_message(self, index)
         return public_key.verify(tx_in.signature, message)
@@ -330,15 +369,21 @@ class Bank:
 
 
 ############################# Arg Parsing ######################################
+"""
+Functions to parse command line arguments based on the click framework
 
-# CONTEXT_SETTINGS = dict(help_option_name=['-h', '--help'])
+Usage: banknetcoin.py [OPTIONS] COMMAND [ARGS]...
 
-# def execute_command(command, data):
-#     response = send_message(command, data)
-#     print(f'Received: {response}')
+Options:
+  --help  Show this message and exit.
 
-# @click.group(context_settings=CONTEXT_SETTINGS)
-# @click.version_option(version='1.0.0')
+Commands:
+  balance  Returns the balance of NAME
+  ping     Test connection
+  serve    Starts server
+  tx       Constructs transactions from FORM to TO with the amount AMOUNT...
+"""
+
 @click.group()
 def banknetcoin():
 
@@ -390,6 +435,9 @@ def tx(**kwargs):
     response = send_message('tx', tx)
     
 ############################## Sockets #########################################
+""" Functions to handle server-client communication 
+"""
+
 
 # Constants
 HOST = "0.0.0.0"
@@ -399,6 +447,19 @@ BANK = Bank() # Hack to make user simulation possible
 
 #Functions
 def prepare_message(command, data):
+    """ Constructs a simple message with command and data load
+
+    Parameters
+    ----------
+    command: str
+        The name of a command
+    data: any python object
+        A data load
+    
+    Returns
+    -------
+    A dictionary
+    """
     return {
         "command": command,
         "data": data

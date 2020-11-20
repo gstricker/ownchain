@@ -5,6 +5,7 @@ Contains the following functions:
     * deserialize
     * to_disk
     * from_disk
+    * prepare_tx
 """
 
 import pickle
@@ -72,6 +73,26 @@ def from_disk(filename):
     return deserialize(serialized)
 
 def prepare_tx(utxos, sender_private_key, receiver_public_key, amount):
+    """Constructs transaction from given UTXOs of the sender and with new Tx
+    outputs according to the given amount. Checks if sender has enough UTXOs
+    to be spent.
+
+    Parameters
+    ----------
+    utxos: list of Tx_outs
+        A list of UTXOs that can be spend from
+    sender_private_key: ecdsa.keys.SigningKey
+        The private_key of the sender
+    receiver_public_key: ecdsa.keys.VerifyingKey
+        The public_key of the receiver
+    amount: numeric
+        An amount to be spent from the UTXOs
+
+    Returns
+    -------
+    A transaction of type Tx
+    """
+    
     # some import to be corrected later
     from ownchain.banknetcoin import Tx, TxIn, TxOut
     
