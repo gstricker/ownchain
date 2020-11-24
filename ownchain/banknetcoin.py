@@ -26,25 +26,23 @@ Contains the following classes:
 
 Contains the following functions:
     * spend_message
-    * Arg parsing functions 
+    * Arg parsing functions
     * prepare_message
     * send_message
     * serve
 """
 import socketserver
 import socket
-import sys
 import click
 from uuid import uuid4
-from copy import deepcopy
-from ecdsa import SigningKey, SECP256k1
 from ownchain.utils import serialize, deserialize, prepare_tx
 from ownchain.example_users import user_private_key, user_public_key
+
 
 # Functions
 def spend_message(tx, index):
     """ Creates a message to be signed in order to spend the outputs
-    
+
     Parameters
     ----------
     tx: Tx
@@ -227,7 +225,7 @@ class Bank:
     handle_tx
         Method to deal with incoming transactions
     fetch_utxo
-        Get all unspent transactions (UTXOs) that are associated with a 
+        Get all unspent transactions (UTXOs) that are associated with a
         specific public_key
     fetch_balance
         Get the balance for a specific public_key
@@ -384,6 +382,7 @@ Commands:
   tx       Constructs transactions from FORM to TO with the amount AMOUNT...
 """
 
+
 @click.group()
 def banknetcoin():
 
@@ -391,17 +390,20 @@ def banknetcoin():
     alice_public_key = user_public_key('alice')
     BANK.issue(1000, alice_public_key)
 
+
 @banknetcoin.command()
 def ping():
     """Test connection
     """
     send_message(command='ping', data='')
 
+
 @banknetcoin.command()
 def serve():
     """Starts server
     """
     serve()
+
 
 @banknetcoin.command()
 @click.argument('name')
@@ -410,6 +412,7 @@ def balance(**kwargs):
     """
     public_key = user_public_key(kwargs['name'])
     send_message("balance", public_key)
+
 
 @banknetcoin.command()
 @click.argument('from')
@@ -433,9 +436,10 @@ def tx(**kwargs):
 
     # send to bank
     response = send_message('tx', tx)
-    
+
+
 ############################## Sockets #########################################
-""" Functions to handle server-client communication 
+""" Functions to handle server-client communication
 """
 
 
@@ -443,9 +447,10 @@ def tx(**kwargs):
 HOST = "0.0.0.0"
 PORT = 10000
 ADDRESS = (HOST, PORT)
-BANK = Bank() # Hack to make user simulation possible
+BANK = Bank()  # Hack to make user simulation possible
 
-#Functions
+
+# Functions
 def prepare_message(command, data):
     """ Constructs a simple message with command and data load
 
@@ -455,7 +460,7 @@ def prepare_message(command, data):
         The name of a command
     data: any python object
         A data load
-    
+
     Returns
     -------
     A dictionary
@@ -463,41 +468,109 @@ def prepare_message(command, data):
     return {
         "command": command,
         "data": data
-        }
+    }
+
 
 def serve():
+    """ Starts the server
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     server = MyTCPServer(ADDRESS, TCPHandler)
     server.serve_forever()
 
 
 def send_message(command, data):
+    """ Sends and receives message through a socket
+
+    Parameters
+    ----------
+    command: string
+        A string representing a valid command in the network
+    data: Pyhton object
+        The data load to be able to execute the command
+
+    Returns
+    -------
+    The response of the server
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(ADDRESS)
-    
+
     message = prepare_message(command, data)
     serialized_message = serialize(message)
     sock.sendall(serialized_message)
 
     response_data = sock.recv(20000)
     response = deserialize(response_data)
-    
+
     print(f'Received: {response}')
-    
+
     return response
+
 
 # Classes
 class MyTCPServer(socketserver.TCPServer):
+    """ Own TCPServer class. Only purpose is to set certain flags.
+    Here: To allow address reuse
+
+    Attributes
+    ----------
+    Inherits from socketserver.TCPServer
+    """
     allow_reuse_address = True
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
+    """ Class to handle incoming TCP packages
+
+    Attributes
+    ----------
+    inherits from socketserver.BaseRequestHandler
+
+    Methods
+    -------
+    respond
+        sends serialized messages
+    handle
+        handles incoming messages and responds accordingly
+    """
 
     def respond(self, command, data):
+        """ Sends serialized messages. Used by handle is a response is required
+
+        Parameters
+        ----------
+        command: string
+            A string representing a valid command in the network
+        data: Pyhton object
+            The data load to be able to execute the command
+
+        Returns
+        -------
+        None
+        """
         message = prepare_message(command, data)
         serialized_message = serialize(message)
         self.request.sendall(serialized_message)
 
     def handle(self):
+        """ Handles incoming messages and responds accordingly
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None. Any reponse is sent to the respond method
+        """
         message_data = self.request.recv(20000)
         message = deserialize(message_data)
         command = message['command']
@@ -508,12 +581,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
         if command == 'balance':
             public_key = message['data']
-            balance = BANK.fetch_balance(public_key)    
+            balance = BANK.fetch_balance(public_key)
             self.respond("balance-response", balance)
 
         if command == 'utxo':
             public_key = message['data']
-            utxos = BANK.fetch_utxo(public_key)    
+            utxos = BANK.fetch_utxo(public_key)
             self.respond("utxos", utxos)
 
         if command == 'tx':
@@ -522,6 +595,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.respond('Transaction', 'accepted')
             except:
                 self.respond('Transaction', 'rejected')
+
 
 # Main
 if __name__ == "__main__":
