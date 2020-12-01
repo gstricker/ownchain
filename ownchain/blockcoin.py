@@ -25,6 +25,9 @@ import socket
 import sys
 import logging
 import click
+import os
+import threading
+import re
 
 ############################# Arg Parsing ######################################
 
@@ -64,34 +67,56 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constants
-HOST = "0.0.0.0"
+HOST = '0.0.0.0'
 PORT = 10000
 ADDRESS = (HOST, PORT)
+
+current = 0
+ID = int(os.environ['ID'])
+PEER_HOSTNAMES = os.environ['PEERS'].split(', ')
 
 class MyTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
-def ping():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(ADDRESS)
-    sock.sendall(b'ping')
-    response = sock.recv(10)
-    logger.info(f'Received {response.decode()}')
-
-
-def serve():
-    server = MyTCPServer(ADDRESS, TCPHandler)
-    server.serve_forever()
-
 
 class TCPHandler(socketserver.BaseRequestHandler):
 
+    def peer(self):
+        address = self.client_address[0]
+        host_info = socket.gethostbyaddr(address)
+        return re.search(r'_(.+?)_', host_info[0]).group(1)
+
     def handle(self):
         message_bytes = self.request.recv(10).strip()
-        logger.info(f'Received {message_bytes.decode()}')
-        if message_bytes == b'ping':
-            self.request.sendall(b'pong\n')
-            logger.info('Send pong')
+        logger.info(f'Received {message_bytes.decode()} from "{self.peer()}"')
+        self.request.sendall(b'pong\n')
+        logger.info(f'Send "pong" to "{self.peer()}"')
+        
+        schedule_ping()
+
+
+def ping(hostname):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    addr = (hostname, PORT)
+    sock.connect(addr)
+    sock.sendall(b'ping')
+    logger.info(f'Sent "ping" to "{hostname}"')
+    response = sock.recv(10)
+    logger.info(f'Received {response.decode()} form "{hostname}"')
+
+def ping_peers():
+    for hostname in PEER_HOSTNAMES:
+        ping(hostname)
+
+def schedule_ping():
+    current = (current + 1) % 3
+    if ID == current:
+        threading.Timer(3, ping_peers).start()
+
+def serve():
+    schedule_ping()
+    server = MyTCPServer(ADDRESS, TCPHandler)
+    server.serve_forever()
 
 
 # Main
