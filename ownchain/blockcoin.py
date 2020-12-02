@@ -73,7 +73,8 @@ ADDRESS = (HOST, PORT)
 
 current = 0
 ID = int(os.environ['ID'])
-PEER_HOSTNAMES = os.environ['PEERS'].split(', ')
+PEER_HOSTNAMES = os.environ['PEERS'].split(',')
+
 
 class MyTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
@@ -104,14 +105,18 @@ def ping(hostname):
     response = sock.recv(10)
     logger.info(f'Received {response.decode()} form "{hostname}"')
 
+
 def ping_peers():
     for hostname in PEER_HOSTNAMES:
         ping(hostname)
 
+
 def schedule_ping():
+    global current
     current = (current + 1) % 3
     if ID == current:
         threading.Timer(3, ping_peers).start()
+
 
 def serve():
     schedule_ping()
